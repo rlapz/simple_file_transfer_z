@@ -36,7 +36,7 @@ const Poll = struct {
 
         var i = @intCast(u16, slots.getSize());
         while (i != 0) : (i -= 1) {
-            _ = try slots.push(i - 1);
+            try slots.push(i - 1);
         }
 
         return This{

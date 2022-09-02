@@ -26,7 +26,7 @@ pub fn push(this: *This, data: u16) !void {
         return error.NoSpaceLeft;
 
     this.buffer[index] = data;
-    this.index += 1;
+    this.index = index + 1;
 }
 
 pub fn pop(this: *This) !u16 {
@@ -39,15 +39,6 @@ pub fn pop(this: *This) !u16 {
     this.index = index;
 
     return this.buffer[index];
-}
-
-pub fn getCurr(this: This) !u16 {
-    const index = this.index;
-
-    if (index == 0)
-        return error.StackEmpty;
-
-    return @intCast(u16, this.buffer[index - 1]);
 }
 
 pub inline fn getSize(this: *This) usize {
