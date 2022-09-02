@@ -119,7 +119,7 @@ const Poll = struct {
 
         this.fds[counter].fd = conn.stream.handle;
         this.fds[counter].events = std.os.POLL.IN;
-        this.counter += 1;
+        this.counter = counter + 1;
 
         std.log.debug("A new client added at {}", .{counter - 1});
     }

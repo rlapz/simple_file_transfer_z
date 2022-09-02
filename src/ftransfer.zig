@@ -21,8 +21,8 @@ pub const Packet = extern struct {
             return error.NameTooLong;
 
         this.name_len = @intCast(u8, _len);
-        std.mem.copy(u8, this.name[0.._len], name);
-        this.name[_len] = 0x0;
+        std.mem.copy(u8, &this.name, name);
+        this.name[_len] = 0;
     }
 
     pub inline fn getName(this: *This) []const u8 {

@@ -53,8 +53,8 @@ pub const Client = struct {
         var recvd = this.recvd;
 
         if (recvd < buffer_size) brk: {
-            var buffer = this.packet.raw[0..buffer_size];
-            const _recvd = try this.connection.stream.read(buffer[recvd..]);
+            var buffer = this.packet.raw[recvd..buffer_size];
+            const _recvd = try this.connection.stream.read(buffer);
             if (_recvd == 0)
                 break :brk;
 
