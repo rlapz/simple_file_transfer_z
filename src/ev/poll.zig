@@ -17,24 +17,35 @@ const Poll = struct {
     const This = @This();
 
     fn init(_server: *server.Server) !This {
-        const a = &_server.allocator;
+        const allocator = &_server.allocator;
 
-        var fds = try a.alloc(std.os.pollfd, config.max_clients + 1);
-        errdefer a.free(fds);
+        var fds = try allocator.alloc(std.os.pollfd, config.max_clients + 1);
+        errdefer allocator.free(fds);
 
-        var clients = try a.alloc(server.Client, config.max_clients);
-        errdefer a.free(clients);
+        fds[0].fd = _server.stream.sockfd.?;
+        fds[0].events = std.os.POLL.IN | std.os.POLL.PRI;
 
-        var indexer = try a.alloc(u16, config.max_clients);
-        errdefer a.free(indexer);
+        var clients = try allocator.alloc(server.Client, config.max_clients);
+        errdefer allocator.free(clients);
+
+        var indexer = try allocator.alloc(u16, config.max_clients);
+        errdefer allocator.free(indexer);
+
+        var slots = try Stack.init(allocator.*, config.max_clients);
+        errdefer slots.deinit();
+
+        var i = @intCast(u16, slots.getSize());
+        while (i != 0) : (i -= 1) {
+            _ = try slots.push(i - 1);
+        }
 
         return This{
             ._server = _server,
             .fds = fds,
             .clients = clients,
             .indexer = indexer,
-            .counter = 0,
-            .slots = try Stack.init(a.*, config.max_clients),
+            .counter = 1,
+            .slots = slots,
         };
     }
 
@@ -53,10 +64,10 @@ const Poll = struct {
             client.unset();
         }
 
-        const a = &this._server.allocator;
-        a.free(this.fds);
-        a.free(this.clients);
-        a.free(this.indexer);
+        const allocator = &this._server.allocator;
+        allocator.free(this.fds);
+        allocator.free(this.clients);
+        allocator.free(this.indexer);
 
         this.slots.deinit();
     }
@@ -171,18 +182,7 @@ const Poll = struct {
     }
 
     fn loop(this: *This) !void {
-        var i = @intCast(u16, this.slots.getSize());
-        while (i != 0) : (i -= 1) {
-            _ = try this.slots.push(i - 1);
-        }
-
         const srv = this._server;
-        this.fds[0].fd = srv.stream.sockfd orelse {
-            return error.InvalidArgument;
-        };
-        this.fds[0].events = std.os.POLL.IN | std.os.POLL.PRI;
-        this.counter += 1;
-
         while (!srv.is_interrupted) {
             const fds = this.fds[0..this.counter];
             if (try std.os.poll(fds, config.poll_timeout) == 0)

@@ -163,8 +163,18 @@ pub const Server = struct {
 
     const This = @This();
 
-    fn init(allocator: std.mem.Allocator, host: []const u8, port: u16) This {
+    fn init(allocator: std.mem.Allocator, host: []const u8, port: u16) !This {
         std.log.info("Initializing...", .{});
+
+        std.fs.cwd().makeDir(config.__upload_dir) catch |err| switch (err) {
+            error.PathAlreadyExists => {},
+            else => {
+                std.log.err("Cannot create a new directory: {s}", .{
+                    config.__upload_dir,
+                });
+                return err;
+            },
+        };
 
         return This{
             .allocator = allocator,
@@ -194,16 +204,6 @@ pub const Server = struct {
     }
 
     fn run(this: *This) !void {
-        std.fs.cwd().makeDir(config.__upload_dir) catch |err| switch (err) {
-            error.PathAlreadyExists => {},
-            else => {
-                std.log.err("Cannot create a new directory: {s}", .{
-                    config.__upload_dir,
-                });
-                return err;
-            },
-        };
-
         try util.setSignal(interruptHandler);
 
         try this.setupTcp();
@@ -256,7 +256,7 @@ pub fn run(argv: [][*:0]u8) !void {
     };
 
     const allocator = std.heap.page_allocator;
-    var server = Server.init(allocator, host, port);
+    var server = try Server.init(allocator, host, port);
     defer server.deinit();
 
     g_server = &server;
