@@ -8,7 +8,6 @@ const util = @import("../util.zig");
 
 const Poll = struct {
     _server: *server.Server,
-    listener: std.os.fd_t,
     fds: []std.os.pollfd,
     indexer: []u16,
     clients: []server.Client,
@@ -19,12 +18,11 @@ const Poll = struct {
 
     fn init(_server: *server.Server) !This {
         const allocator = &_server.allocator;
-        const listener = _server.stream.sockfd.?;
 
         var fds = try allocator.alloc(std.os.pollfd, config.max_clients + 1);
         errdefer allocator.free(fds);
 
-        fds[0].fd = listener;
+        fds[0].fd = _server.stream.sockfd.?;
         fds[0].events = std.os.POLL.IN | std.os.POLL.PRI;
 
         var clients = try allocator.alloc(server.Client, config.max_clients);
@@ -43,7 +41,6 @@ const Poll = struct {
 
         return This{
             ._server = _server,
-            .listener = listener,
             .fds = fds,
             .clients = clients,
             .indexer = indexer,
@@ -154,13 +151,14 @@ const Poll = struct {
     fn handleEvents(this: *This) void {
         var iter: u16 = 0;
         var counter = this.counter;
+        const fds = this.fds;
 
         while (iter < counter) : (iter += 1) {
-            const fds = &this.fds[iter];
-            if (fds.revents != std.os.POLL.IN)
+            if (fds[iter].revents != std.os.POLL.IN)
                 continue;
 
-            if (fds.fd == this.listener) {
+            // listener always at 0th index
+            if (iter == 0) {
                 this.clientAdd() catch |err| {
                     std.log.err("clientAdd: {s}", .{@errorName(err)});
                 };
